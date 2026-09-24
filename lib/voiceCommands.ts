@@ -1,3 +1,5 @@
+export const WAKE_WORD = "ultron";
+
 export type VoiceCommand =
   | { type: "open"; target: "google" | "youtube" | "github" }
   | { type: "zoom-in" }
@@ -14,12 +16,27 @@ const OPEN_TARGETS: Record<string, VoiceCommand> = {
   github: { type: "open", target: "github" },
 };
 
+export function hasWakeWord(transcript: string) {
+  return new RegExp(`\\b${WAKE_WORD}\\b`, "i").test(transcript);
+}
+
+export function stripWakeWord(transcript: string) {
+  return transcript
+    .replace(new RegExp(`\\b${WAKE_WORD}\\b`, "gi"), "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function parseVoiceCommand(transcript: string): VoiceCommand {
-  const text = transcript.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const text = stripWakeWord(transcript).toLowerCase();
+
+  if (!text) return { type: "unknown" };
 
   for (const [target, command] of Object.entries(OPEN_TARGETS)) {
     if (text.includes(`open ${target}`) || text === target) return command;
   }
+
   if (/\b(zoom in|zoom up|bigger)\b/.test(text)) return { type: "zoom-in" };
   if (/\b(zoom out|zoom down|smaller)\b/.test(text)) return { type: "zoom-out" };
   if (/\b(reset|reset view|home view)\b/.test(text)) return { type: "reset" };
@@ -43,6 +60,7 @@ export function speak(text: string) {
 }
 
 export function openSafeTarget(target: "google" | "youtube" | "github") {
+  if (typeof window === "undefined") return;
   const urls = {
     google: "https://www.google.com",
     youtube: "https://www.youtube.com",
